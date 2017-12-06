@@ -8,7 +8,7 @@
 
 
 #### getEmployee
-    In addition to employee address, I also included allowed tokens, token distribution, employee's yearly EUR salary, token distribution last updated timestamp, and last payday timestamp as return values.
+	In addition to employee address, I also included allowed tokens, token distribution, employee's yearly EUR salary, token distribution last updated timestamp, and last payday timestamp as return values.
 
 
 ## Additional Methods
