@@ -25,6 +25,9 @@ Owner only function to switch owner address.
 #### changeOracle
 Owner only function to switch oracle address.
 
+#### getEURExchangeRate
+Public function that will return the EUR exchange rate of a given token address.
+
 #### _addMonths
 Private function that will take a timestamp and add it by a number of months.
 
@@ -36,5 +39,5 @@ A library to do math operations with safety checks [https://github.com/OpenZeppe
 #### DateTime.sol
 Contract which implements utilities for working with datetime values in ethereum [https://github.com/pipermerriam/ethereum-datetime/blob/master/contracts/DateTime.sol](https://github.com/pipermerriam/ethereum-datetime/blob/master/contracts/DateTime.sol)
 
-#### AdvancedTokenERC20.sol, tokenRecipient.sol
-Standard ERC20 Token contract with approveAndCall() [https://www.ethereum.org/token](https://www.ethereum.org/token)
+#### TokenERC20.sol, tokenRecipient.sol
+Standard ERC20 Token contract [https://www.ethereum.org/token](https://www.ethereum.org/token)

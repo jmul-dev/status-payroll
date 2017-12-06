@@ -1,7 +1,7 @@
 pragma solidity ^0.4.18;
 
 import './SafeMath.sol';
-import './AdvancedTokenERC20.sol';
+import './TokenERC20.sol';
 import './DateTime.sol';
 import './PayrollInterface.sol';
 import './tokenRecipient.sol';
@@ -166,16 +166,10 @@ contract Payroll is PayrollInterface, tokenRecipient {
 	} 
 
 	/**
-	 * @dev Will pause contract and transfer all remaining funds / token funds to owner.
+	 * @dev Will pause contract and transfer all remaining funds to owner.
 	 */
 	function scapeHatch() public onlyOwner { 
 		paused = true;
-
-		// Transfer all tokens in this contract to owner
-		for (uint256 i = 1; i <= lastAllowedTokenId; i++) {
-			AdvancedTokenERC20 _token = AdvancedTokenERC20(allPayrollAllowedTokens[i].tokenAddress);
-			_token.transfer(owner, _token.balanceOf(this));
-		}
 
 		// Transfer ether to owner
 		if (this.balance > 0) {
@@ -235,10 +229,10 @@ contract Payroll is PayrollInterface, tokenRecipient {
 
 		// Get EUR balance of each payroll allowed tokens
 		for (uint256 i = 1; i <= lastAllowedTokenId; i++) {
-			AdvancedTokenERC20 _token = AdvancedTokenERC20(allPayrollAllowedTokens[i].tokenAddress);
+			TokenERC20 _token = TokenERC20(allPayrollAllowedTokens[i].tokenAddress);
 
 			// Need -1 since array index starts at 0
-			tokenEURBalances[i-1] = _token.balanceOf(this).mul(allPayrollAllowedTokens[i].EURExchangeRate);
+			tokenEURBalances[i-1] = _token.allowance(owner, this).mul(allPayrollAllowedTokens[i].EURExchangeRate);
 		}
 
 		// Calculate the EUR amount required for each token to pay all employees
@@ -248,9 +242,10 @@ contract Payroll is PayrollInterface, tokenRecipient {
 			if (_employee.accountAddress != 0x0) {
 				for (uint256 k = 0; k < _employee.allowedTokens.length; k++) {
 					uint256 tokenId = allowedTokenIdLookup[_employee.allowedTokens[k]];
+					_token = TokenERC20(allPayrollAllowedTokens[tokenId].tokenAddress);
 
 					// Need -1 since array index starts at 0
-					tokenEURNeededToPayEmployees[tokenId-1] = tokenEURNeededToPayEmployees[tokenId-1].add(_employee.yearlyEURSalary.mul(_employee.distribution[k]).div(100));
+					tokenEURNeededToPayEmployees[tokenId-1] = tokenEURNeededToPayEmployees[tokenId-1].add(_employee.yearlyEURSalary.mul(10 ** uint256(_token.decimals())).mul(_employee.distribution[k]).div(100));
 				}
 			}
 		}
@@ -271,13 +266,13 @@ contract Payroll is PayrollInterface, tokenRecipient {
 	}
 
 	/**
-	 * @dev Allows user to transfer token funds to this contract address
+	 * @dev Allows owner to transfer token funds to this contract address
 	 * @param _from The address that authorizes this contract to spend
 	 * @param _value The max amount this contract can spend
 	 * @param _token The address of the authorized token
 	 * @param _extraData Some extra information to send to this contract
 	 */
-	function receiveApproval(address _from, uint256 _value, address _token, bytes _extraData) public contractIsActive {
+	function receiveApproval(address _from, uint256 _value, address _token, bytes _extraData) public onlyOwner contractIsActive {
 		require (allowedTokenIdLookup[_token] > 0);
 		ReceivedToken(_from, _value, _token, _extraData);
 	}
@@ -295,11 +290,11 @@ contract Payroll is PayrollInterface, tokenRecipient {
 		require (EURExchangeRate > 0);
 		lastAllowedTokenId++;
 
-		AdvancedTokenERC20 _token = AdvancedTokenERC20(tokenAddress);
+		TokenERC20 _token = TokenERC20(tokenAddress);
 
 		allowedTokenIdLookup[tokenAddress] = lastAllowedTokenId;
 		allPayrollAllowedTokens[lastAllowedTokenId].tokenAddress = tokenAddress;
-		allPayrollAllowedTokens[lastAllowedTokenId].EURExchangeRate = EURExchangeRate.mul(_token.decimals());
+		allPayrollAllowedTokens[lastAllowedTokenId].EURExchangeRate = EURExchangeRate.mul(10 ** uint256(_token.decimals()));
 	}
 
 	/**
@@ -372,8 +367,8 @@ contract Payroll is PayrollInterface, tokenRecipient {
 			// Calculate the amount of token based on the rate
 			uint256 tokenAmount = tokenEUR.div(_payrollAllowedToken.EURExchangeRate);
 
-			AdvancedTokenERC20 _token = AdvancedTokenERC20(_payrollAllowedToken.tokenAddress);
-			require (_token.balanceOf(this) >= tokenAmount);
+			TokenERC20 _token = TokenERC20(_payrollAllowedToken.tokenAddress);
+			require (_token.allowance(owner, this) >= tokenAmount);
 
 			tokenNeededToPayEmployee[i] = tokenAmount;
 		}
@@ -382,8 +377,8 @@ contract Payroll is PayrollInterface, tokenRecipient {
 		_employee.lastPaydayTimestamp = now;
 
 		for (uint256 j = 0; j < _employee.allowedTokens.length; j++) {
-			_token = AdvancedTokenERC20(_employee.allowedTokens[j]);
-			_token.transfer(_employee.accountAddress, tokenNeededToPayEmployee[j]);
+			_token = TokenERC20(_employee.allowedTokens[j]);
+			_token.transferFrom(owner, _employee.accountAddress, tokenNeededToPayEmployee[j]);
 		}
 	}
 
@@ -398,11 +393,22 @@ contract Payroll is PayrollInterface, tokenRecipient {
 		require (allowedTokenIdLookup[token] > 0);
 		require (EURExchangeRate > 0);
 
-		AdvancedTokenERC20 _token = AdvancedTokenERC20(token);
-		allPayrollAllowedTokens[allowedTokenIdLookup[token]].EURExchangeRate = EURExchangeRate.mul(_token.decimals());
+		TokenERC20 _token = TokenERC20(token);
+		allPayrollAllowedTokens[allowedTokenIdLookup[token]].EURExchangeRate = EURExchangeRate.mul(10 ** uint256(_token.decimals()));
 	}
 
-	//////////// Helper Methods ////////////
+	//////////// Public Methods ////////////
+	/**
+	 * @dev Allows user to get EUR exchange rate based on the token address
+	 * @return EURExchangeRate The EUR exchange rate for the token
+	 */
+	function getEURExchangeRate(address tokenAddress) public constant returns (uint256) {
+		// Check if token exists
+		require (allowedTokenIdLookup[tokenAddress] > 0);
+		return (allPayrollAllowedTokens[allowedTokenIdLookup[tokenAddress]].EURExchangeRate);
+	}
+
+	//////////// Private Methods ////////////
 	/**
 	 * @dev Takes a timestamp and add it by a number of months
 	 * @param months Number of months to add to the timestamp
