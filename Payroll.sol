@@ -369,6 +369,7 @@ contract Payroll is PayrollInterface, tokenRecipient {
 
 			TokenERC20 _token = TokenERC20(_payrollAllowedToken.tokenAddress);
 			require (_token.allowance(owner, this) >= tokenAmount);
+			require (_token.balanceOf(owner) >= tokenAmount);
 
 			tokenNeededToPayEmployee[i] = tokenAmount;
 		}
