@@ -4,6 +4,7 @@ import './SafeMath.sol';
 import './AdvancedTokenERC20.sol';
 import './DateTime.sol';
 import './PayrollInterface.sol';
+import './tokenRecipient.sol';
 
 contract Payroll is PayrollInterface, tokenRecipient {
 	using SafeMath for uint;
