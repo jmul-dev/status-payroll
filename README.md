@@ -1,13 +1,15 @@
 # Status Payroll Contract
 
-### PayrollInterface Changes
+## PayrollInterface Changes
 
-#### addEmployee(address accountAddress, address[] allowedTokens, uint256[] distribution, uint256 initialYearlyEURSalary) public returns (uint256)
-1. Added extra parameter uint256[] distribution to specify the percentage of each allowed tokens the employee wishes to accept as payments.
-2. Added employeeId as return value for convenience.
+####1. addEmployee(address accountAddress, address[] allowedTokens, uint256[] distribution, uint256 initialYearlyEURSalary) public returns (uint256)
+...1. Added extra parameter uint256[] distribution to specify the percentage of each allowed tokens the employee wishes to accept as payments.
+...2. Added employeeId as return value for convenience.
 
-#### getEmployee(uint256 employeeId) public constant returns (address employeeAddress, address[] allowedTokens, uint256[] distribution, uint256 yearlyEURSalary, uint256 lastUpdatedTokenDistributionTimestamp, uint256 lastPaydayTimestamp)
-1. In addition to employee address, I also included allowed tokens, token distribution, employee's yearly EUR salary, token distribution last updated timestamp, and last payday timestamp as return values.
+
+####2. getEmployee(uint256 employeeId) public constant returns (address employeeAddress, address[] allowedTokens, uint256[] distribution, uint256 yearlyEURSalary, uint256 lastUpdatedTokenDistributionTimestamp, uint256 lastPaydayTimestamp)
+...1. In addition to employee address, I also included allowed tokens, token distribution, employee's yearly EUR salary, token distribution last updated timestamp, and last payday timestamp as return values.
+
 
 ### Additional Methods
 
