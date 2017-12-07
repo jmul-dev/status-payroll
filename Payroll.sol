@@ -392,17 +392,15 @@ contract Payroll is PayrollInterface, tokenRecipient {
 	 * @return employeeAddress The address of the employee
 	 * @return allowedTokens List of token addresses that this employee will accept as payments
 	 * @return distribution The percentage of each tokens the employee wishes to accept
-	 * @return yearlyEURSalary Employee's yearly salary in EUR
 	 * @return lastUpdatedTokenDistributionTimestamp Employee's last updated token distribution timestamp
 	 * @return lastPaydayTimestamp Employee's last payday timestamp
 	 */
-	function getInfo() public onlyEmployee constant returns (address employeeAddress, address[] allowedTokens, uint256[] distribution, uint256 yearlyEURSalary, uint256 lastUpdatedTokenDistributionTimestamp, uint256 lastPaydayTimestamp) {
+	function getInfo() public onlyEmployee constant returns (address employeeAddress, address[] allowedTokens, uint256[] distribution, uint256 lastUpdatedTokenDistributionTimestamp, uint256 lastPaydayTimestamp) {
 		Employee storage _employee = allEmployees[employeeIdLookup[msg.sender]];
 
 		return (_employee.accountAddress,
 				_employee.allowedTokens,
 				_employee.distribution,
-				_employee.yearlyEURSalary,
 				_employee.lastUpdatedTokenDistributionTimestamp,
 				_employee.lastPaydayTimestamp
 			   );
