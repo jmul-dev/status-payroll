@@ -422,15 +422,6 @@ contract Payroll is PayrollInterface, tokenRecipient {
 		allPayrollAllowedTokens[allowedTokenIdLookup[token]].EURExchangeRate = EURExchangeRate;
 	}
 
-	//////////// Public Methods ////////////
-	/**
-	 * @dev Allows user to get EUR exchange rate based on the token address
-	 * @return EURExchangeRate The EUR exchange rate for the token
-	 */
-	function getEURExchangeRate(address tokenAddress) public constant returns (uint256) {
-		return (allPayrollAllowedTokens[allowedTokenIdLookup[tokenAddress]].EURExchangeRate);
-	}
-
 	//////////// Private Methods ////////////
 	/**
 	 * @dev Takes a timestamp and add it by a number of months

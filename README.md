@@ -25,8 +25,8 @@ Owner only function to switch owner address.
 #### changeOracle
 Owner only function to switch oracle address.
 
-#### getEURExchangeRate
-Public function that will return the EUR exchange rate of a given token address.
+#### getInfo
+Employee only function that will return employee information based on the address.
 
 #### _addMonths
 Private function that will take a timestamp and add it by a number of months.
