@@ -39,6 +39,7 @@ contract Payroll is PayrollInterface, tokenRecipient {
 
 	event ReceivedFund(uint256 value);
 	event ReceivedToken(address from, uint256 value, address token, bytes extraData);
+	event PaycheckSent(address indexed employeeAddress, uint256 lastPaydayTimestamp);
 
 	/**
 	 * @dev Checks only owner address is calling
@@ -117,7 +118,10 @@ contract Payroll is PayrollInterface, tokenRecipient {
 			employeeIdLookup[accountAddress] = lastEmployeeId;
 			allEmployees[lastEmployeeId].accountAddress = accountAddress;
 			allEmployees[lastEmployeeId].allowedTokens = allowedTokens;
+			allEmployees[lastEmployeeId].distribution = distribution;
 			allEmployees[lastEmployeeId].yearlyEURSalary = initialYearlyEURSalary;
+			// Set lastPaydayTimestamp to now so that employee can't claim paycheck right after account creation
+			allEmployees[lastEmployeeId].lastPaydayTimestamp = now; 
 			totalYearlyEURSalary = totalYearlyEURSalary.add(initialYearlyEURSalary);
 			return lastEmployeeId;
 		}
@@ -235,6 +239,7 @@ contract Payroll is PayrollInterface, tokenRecipient {
 			tokenEURBalances[i-1] = _token.allowance(owner, this).mul(allPayrollAllowedTokens[i].EURExchangeRate);
 		}
 
+
 		// Calculate the EUR amount required for each token to pay all employees
 		for (uint256 j = 1; j <= lastEmployeeId; j++) {
 			Employee memory _employee = allEmployees[j];
@@ -251,12 +256,12 @@ contract Payroll is PayrollInterface, tokenRecipient {
 		}
 
 		// Use the first index to calculate payroll runway
-		uint256 payrollRunway = tokenEURBalances[0].div(tokenEURNeededToPayEmployees[0]).div(365);
+		uint256 payrollRunway = tokenEURBalances[0].div(tokenEURNeededToPayEmployees[0].div(365));
 
 		if (tokenEURBalances.length > 1) {
 			// Loop through the remaining allowed tokens and find the one with lowest runway
 			for (uint256 l = 1; l < tokenEURBalances.length; l++) {
-				uint256 tokenPayrollRunway = tokenEURBalances[l].div(tokenEURNeededToPayEmployees[l]).div(365);
+				uint256 tokenPayrollRunway = tokenEURBalances[l].div(tokenEURNeededToPayEmployees[l].div(365));
 				if (tokenPayrollRunway < payrollRunway) {
 					payrollRunway = tokenPayrollRunway;
 				}
@@ -272,7 +277,7 @@ contract Payroll is PayrollInterface, tokenRecipient {
 	 * @param _token The address of the authorized token
 	 * @param _extraData Some extra information to send to this contract
 	 */
-	function receiveApproval(address _from, uint256 _value, address _token, bytes _extraData) public onlyOwner contractIsActive {
+	function receiveApproval(address _from, uint256 _value, address _token, bytes _extraData) public contractIsActive {
 		require (allowedTokenIdLookup[_token] > 0);
 		ReceivedToken(_from, _value, _token, _extraData);
 	}
@@ -290,11 +295,9 @@ contract Payroll is PayrollInterface, tokenRecipient {
 		require (EURExchangeRate > 0);
 		lastAllowedTokenId++;
 
-		TokenERC20 _token = TokenERC20(tokenAddress);
-
 		allowedTokenIdLookup[tokenAddress] = lastAllowedTokenId;
 		allPayrollAllowedTokens[lastAllowedTokenId].tokenAddress = tokenAddress;
-		allPayrollAllowedTokens[lastAllowedTokenId].EURExchangeRate = EURExchangeRate.mul(10 ** uint256(_token.decimals()));
+		allPayrollAllowedTokens[lastAllowedTokenId].EURExchangeRate = EURExchangeRate;
 	}
 
 	/**
@@ -329,7 +332,7 @@ contract Payroll is PayrollInterface, tokenRecipient {
 	 */
 	function determineAllocation(address[] tokens, uint256[] distribution) public onlyEmployee contractIsActive {
 		Employee storage _employee = allEmployees[employeeIdLookup[msg.sender]];
-		require (now > _addMonths(6, _employee.lastUpdatedTokenDistributionTimestamp));
+		require (_employee.lastUpdatedTokenDistributionTimestamp == 0 || now > _addMonths(_employee.lastUpdatedTokenDistributionTimestamp, 6));
 		require (tokens.length == distribution.length);
 
 		uint256 totalDistribution = 0;
@@ -353,21 +356,21 @@ contract Payroll is PayrollInterface, tokenRecipient {
 	 */
 	function payday() public onlyEmployee contractIsActive {
 		Employee storage _employee = allEmployees[employeeIdLookup[msg.sender]];
-		require (now > _addMonths(1, _employee.lastPaydayTimestamp));
+		require (now > _addMonths(_employee.lastPaydayTimestamp, 1));
 
 		uint256[] memory tokenNeededToPayEmployee = new uint256[](_employee.allowedTokens.length);
 
 		// Check if contract has enough balance to pay this employee
 		for (uint256 i = 0; i < _employee.allowedTokens.length; i++) {
 			PayrollAllowedToken storage _payrollAllowedToken = allPayrollAllowedTokens[allowedTokenIdLookup[_employee.allowedTokens[i]]]; 
+			TokenERC20 _token = TokenERC20(_payrollAllowedToken.tokenAddress);
 
 			// Calculate the amount of EUR that we need to pay based on this token distribution
-			uint256 tokenEUR = _employee.yearlyEURSalary.div(12).mul(_employee.distribution[i]).div(100); 
+			uint256 tokenEUR = _employee.yearlyEURSalary.mul(10 ** uint256(_token.decimals())).div(12).mul(_employee.distribution[i]).div(100); 
 
 			// Calculate the amount of token based on the rate
 			uint256 tokenAmount = tokenEUR.div(_payrollAllowedToken.EURExchangeRate);
 
-			TokenERC20 _token = TokenERC20(_payrollAllowedToken.tokenAddress);
 			require (_token.allowance(owner, this) >= tokenAmount);
 			require (_token.balanceOf(owner) >= tokenAmount);
 
@@ -381,6 +384,7 @@ contract Payroll is PayrollInterface, tokenRecipient {
 			_token = TokenERC20(_employee.allowedTokens[j]);
 			_token.transferFrom(owner, _employee.accountAddress, tokenNeededToPayEmployee[j]);
 		}
+		PaycheckSent(_employee.accountAddress, _employee.lastPaydayTimestamp);
 	}
 
 	//////////// Oracle Only Methods ////////////
@@ -394,8 +398,7 @@ contract Payroll is PayrollInterface, tokenRecipient {
 		require (allowedTokenIdLookup[token] > 0);
 		require (EURExchangeRate > 0);
 
-		TokenERC20 _token = TokenERC20(token);
-		allPayrollAllowedTokens[allowedTokenIdLookup[token]].EURExchangeRate = EURExchangeRate.mul(10 ** uint256(_token.decimals()));
+		allPayrollAllowedTokens[allowedTokenIdLookup[token]].EURExchangeRate = EURExchangeRate;
 	}
 
 	//////////// Public Methods ////////////
@@ -404,19 +407,17 @@ contract Payroll is PayrollInterface, tokenRecipient {
 	 * @return EURExchangeRate The EUR exchange rate for the token
 	 */
 	function getEURExchangeRate(address tokenAddress) public constant returns (uint256) {
-		// Check if token exists
-		require (allowedTokenIdLookup[tokenAddress] > 0);
 		return (allPayrollAllowedTokens[allowedTokenIdLookup[tokenAddress]].EURExchangeRate);
 	}
 
 	//////////// Private Methods ////////////
 	/**
 	 * @dev Takes a timestamp and add it by a number of months
-	 * @param months Number of months to add to the timestamp
 	 * @param timestamp Timestamp to add by a number of months
+	 * @param months Number of months to add to the timestamp
 	 * @return Timestamp after added by a number of months
 	 */
-	function _addMonths(uint8 months, uint256 timestamp) private constant returns (uint256) {
+	function _addMonths(uint256 timestamp, uint8 months) private constant returns (uint256) {
 		uint8 timestampMonth = datetime.getMonth(timestamp);
 		uint16 timestampYear = datetime.getYear(timestamp);
 
