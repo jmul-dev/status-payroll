@@ -41,3 +41,9 @@ Contract which implements utilities for working with datetime values in ethereum
 
 #### TokenERC20.sol, tokenRecipient.sol
 Standard ERC20 Token contract [https://www.ethereum.org/token](https://www.ethereum.org/token)
+
+## Employee - Frontend UI
+
+#### payroll.html
+I created a simple frontend page that will check whether or not the currently logged-in Ether wallet address is an employee of Status (i.e in the payroll system). If yes, then the frontend will populate the employee information.
+You can see the live version at [http://gateway.ipfs.io/ipfs/QmcdazTN1UoyGyvNuFybJtCfkjCRRn12mwBjYxj4bC79HY](http://gateway.ipfs.io/ipfs/QmcdazTN1UoyGyvNuFybJtCfkjCRRn12mwBjYxj4bC79HY)
